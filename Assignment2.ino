@@ -1,163 +1,195 @@
+// Assignment 2 for B31DG by Maksims Latkovskis
 
-#define analogPin 36
-#define a 0
-#define b 1
-#define z 2
-#define y 3
-#define Button1 22
-#define Signal 23
-#define Error 21
-#define Pulse 20
+#define ANALOGPIN 36
+#define ERRORPIN 21
+#define WATCHDOGPIN 18
+#define DIGITALINPUTPIN 22
+#define SIGNALPIN 19
 
-unsigned  long start;
-unsigned long finish;
-unsigned  int task;
-unsigned int tyme;
+unsigned long functionStart; // 
+unsigned long functionFinish;
+unsigned int slotCounter=0;
+unsigned  int functionDuration;
+int extraDelay;
 
-unsigned int val;
-unsigned int counter=0;
-char c=0;
-char pock;
-unsigned int reading;
-unsigned int lastReading;
-unsigned int haldCycle;
-float frequency;
-char button;
-char error_code;
-unsigned int dato[4];
-unsigned int avg;
+char analogAdress;
+unsigned int analogReading;
+unsigned int analogData[4];
+unsigned int analogAverage;
 
+char buttonInput;
+char errorCode;
 
-unsigned int strt;
-unsigned int fnsh;
-unsigned int toime;
+unsigned int measuredFreq;
 
-unsigned int beginning;
-unsigned int ending;
-
-
-void setup() {
-  // put your setup code here, to run once:
-   Serial.begin(9600);
-     //   adc1_config_width(width);
-      //  adc1_config_channel_atten(channel, atten);
-      pinMode(Button1, INPUT);
-      pinMode(Pulse, INPUT);
-      pinMode(Signal, OUTPUT);
-        pinMode(Error, OUTPUT);
-      pinMode(Button1, INPUT_PULLDOWN);
-   pinMode(Pulse, INPUT_PULLDOWN);
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void setup() 
+{
+  Serial.begin(9600); // Starts the serial communication and sets baud rate to 9600
+  pinMode(DIGITALINPUTPIN, INPUT);
+  pinMode(DIGITALINPUTPIN, INPUT_PULLDOWN); // Prevents pin from being floating 
+  pinMode(SIGNALPIN, INPUT);
+  pinMode(SIGNALPIN, INPUT_PULLDOWN); // Prevents pin from being floating 
+  pinMode(WATCHDOGPIN, OUTPUT);
+  pinMode(ERRORPIN, OUTPUT);
 }
+//----------------------------------------------------------------------------------------------------------------------------------------------
 
-void loop() {
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void loop() // Single time slot function of the Cyclic Executive (repeating)
+{
+  functionBeginning: // Address line
+  functionStart=micros(); // Sets the CPU running time as the starting point of the time slot
+  slotCounter++; // Increments the counter since the last iteration
+  if(slotCounter>599) {slotCounter=0;} // Clears Slot counter after 5 seconds (0.2 Hz)
 
-start=micros();
- counter++;
- if(counter>600) {counter=0;} // Clear counter after 5 seconds (0.2 Hz)
- Serial.print("Execution time:");
- Serial.print(task,DEC);
- Serial.print('\n');
-
-
-//Printing what needs to be printed
-
-
-
-
-
+  //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // Cyclic Executive function calls
  
-//Reading potentiometer
-    if(((counter+a)%5)==0) // 24 Hz cycle
-    {
-       val = analogRead(analogPin); 
-        Serial.print("Analog read:");
-        Serial.print(val,DEC);
-        Serial.print('\n');
-    }
+      // Printing data on the serial monitor at 0.2 Hz frequency
+      if(slotCounter==599) {SerialOutput();}
 
-//Computing average value
-    if(((counter+b)%5)==0) // 24 Hz cycle
-    {
-      if(c>=4) {c=0;}
-   dato[c]=val;
-   c++;
+      // Generating watchdog at 40 Hz frequency
+      if(((slotCounter)%3)==0) {Watchdog();}
+
+      // Reading potentiometer value at 24 Hz frequency
+      if(((slotCounter)%5)==0) {AnalogRead();}
+
+      // Computing average of 4 last potentiometer readings at 24 Hz frequency
+      if(((slotCounter+1)%5)==0) {AnalogAverage();}
+
+      // Reading the digital input at 5 Hz frequency
+      if(((slotCounter+8)%24)==0) {DigitalInput();}
    
-   avg=dato[0]+dato[1]+dato[2]+dato[3];
-   avg=avg>>2;
-   Serial.print("Average value:");
-        Serial.print(avg,DEC);
-        Serial.print('\n');
-        
-    }
-
-//Reading pushbutton
-    if(((counter+z)%24)==0) // 5 Hz cycle
-    {
-       button= digitalRead(Button1);
-       if(button==1) { digitalWrite(Signal,HIGH);}
-       else { digitalWrite(Signal,LOW);}
-        Serial.print("Button state:");
-        Serial.print(button,DEC);
-        Serial.print('\n');
-    }
- //Do nothing thousand times
-    if(((counter+z)%12)==0) // 10 Hz cycle
-    {
-       for(char i=0; i++; i<250)
-       {
-          for(char j=0; i++; i<4)
-          {
-          __asm__ __volatile__ ("nop");
-          }
-       }
-    }
-// perform check
-      if(((counter+y)%40)==0) // 3 Hz cycle
-      {
-      if(avg > 2047){error_code = 1;}
-      else{ error_code = 0;}
-      }
-
- // vusualise check result
-      if(((counter+y)%40)==0) // 3 Hz cycle
-      {
-      if(error_code==1){digitalWrite(Error,HIGH);}
-      else{digitalWrite(Error,LOW);}
-      }
-
-
-//evaluation of frequency
- if(((counter)%120)==0) // 1 Hz cycle
- {
-  pock=0;
-  strt=micros();
-    while(toime<3000)
-    {
-      reading=digitalRead(Pulse);
-       if (reading!= lastReading && pock!=1) 
-       {
-       beginning=micros();
-       pock=1;
-       }
-        else if (reading!= lastReading && pock==1) 
-        {
-        ending=micros();
-        haldCycle=ending-beginning;
-        frequency=500000/haldCycle;
-        goto next;
-        }
-        fnsh=micros();
-        toime=fnsh-strt;
-        lastReading=reading;
-    }
-
- }
+      // Doing nothing thousand times at 10 Hz frequency
+      if(((slotCounter+7)%12)==0) {Nop1000times();}
  
- next:
+      // Performing error check at 3 Hz frequency
+      if(((slotCounter+2)%40)==0) {ErrorCheck();}
+
+      // Toggling the error event signalling at 3 Hz frequency
+      if(((slotCounter+3)%40)==0) {ErrorDisplay();}
+
+      // Evaluating the square signal frequency at 1 Hz frequency
+      if(((slotCounter+4)%120)==0) {FrequencyMeasure();}
  
- finish=micros();
- task=finish-start;
-// tyme=8333-task;
- //delayMicroseconds(tyme);
-delay(1000);
+  //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
+  functionFinish=micros(); // Sets the CPU running time as the finishing point of the utilised slot time (rest of the function is quicker than 0.333 miliseconds)
+  functionDuration= functionFinish-functionStart; // Computes the time it took to perform all necessary functions
+  extraDelay=8333-functionDuration; // Computes the time required to make the slot of 8333 useconds (120 Hz)
+  if(extraDelay<0) // Checks whether the additional delay is a positive number
+  {
+    Serial.print("Slot overflow"); // Prints the error message for the debugging purpose
+    goto functionBeginning; // Jumps to the loop beggining to start the next slot
+  }
+  delayMicroseconds(extraDelay); // Introduced additional delay to make the slot of 8333 seconds
 }
+//----------------------------------------------------------------------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void DigitalInput(void) // Reads the digital state of the button 
+{
+  buttonInput= digitalRead(DIGITALINPUTPIN); // Reads the digital state of the button (either 0 or 1)
+}
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void ErrorCheck(void) // Checks whether the average analog value is greater than the half of the maximum possible analog reading (?>(4096/2)-1)
+{
+  if(analogAverage>2047) {errorCode = 1;} // Setting the error flag 
+  else{errorCode=0;} // Clearing the error flag
+}
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void ErrorDisplay(void) // Toggles the LED if the error occurs
+{
+  digitalWrite(ERRORPIN,errorCode); // Switched the LED either ON or OFF
+}
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void AnalogRead(void) // Reads the analog value from the ANALOGPIN pin
+{
+  analogReading = analogRead(ANALOGPIN); 
+}
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void AnalogAverage(void) // Computes average of last four analog readings
+{ 
+  // This section logs the most recent analog reading to the longest-ever updated cell (there are 4 cells in total)
+  if(analogAdress>=4) {analogAdress=0;} // Making sure only valid array cells are accessed
+  analogData[analogAdress]=analogReading; // Loggin the last analog reading into the array cell
+  analogAdress++; // Icrementing array adress
+
+  // This section computes the average of last four readings
+  analogAverage=analogData[0]+analogData[1]+analogData[2]+analogData[3]; // Sums all values in the array
+  analogAverage=analogAverage>>2; // Divides the sum by four to obtain average
+}
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void Watchdog(void) // Generates the 50us pulse
+{
+  digitalWrite(WATCHDOGPIN,HIGH);
+  delayMicroseconds(50);
+  digitalWrite(WATCHDOGPIN,LOW);
+}
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void Nop1000times(void) // Sets CPU in no-operation state for 1000 clock cycles (approx. 1ms); two for loops to simplify counter register access
+{
+  for(char i=0; i++; i<4)
+  {
+    for(char j=0; i++; i<250)
+    {
+      __asm__ __volatile__ ("nop"); // "volatile" is needed to prevent optimisation by the compiler
+    }
+  }
+}
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void FrequencyMeasure(void) // Function to measure the frequency of the 50% duty cycle square wave
+{
+  // Parameters to prevent function from occupying more than 3 miliseconds of the CPU time
+  unsigned long measureStart; // Absolute time of the measuring start
+  unsigned long measureFinish; // Absolute time of the measuring finish
+  unsigned int measureTime; // Time it took since the function start to measure the frequency
+
+  // Parameters to measure the half-cycle duration of the input square signal (in microseconds)
+  unsigned long stateStart;  // Absolute time of the half-cycle start
+  unsigned long stateFinish; // Absolute time of the half-cycle finish
+  unsigned int stateTime; // Half-cycle duration of the input square signal
+  char firstTrigger=0; // Trigger to distinguish between the first and the second detected edges
+  char currentReading; // Current signal pin state
+  char previousReading; // Previous signal pin state
+
+  measureStart=micros(); // Beggining of the measurement
+  while(measureTime<3000) // Prevents function from occupying more than 3 miliseconds of the CPU time
+  {
+    currentReading=digitalRead(SIGNALPIN); // Reads the digital signal pin input (0 or 1)
+      
+    if ((currentReading!= previousReading) & (firstTrigger!=1)) // If the first edge was detected
+    {
+      stateStart=micros(); // Start counting the half-cycle duration
+      firstTrigger=1; // assign trigger to 1 to allow the second edge detection processing
+    }  
+    else if ((currentReading!= previousReading) & (firstTrigger==1)) // If the second edge was detected
+    {
+      stateFinish=micros(); // Finish counting the half-cycle duration
+      stateTime=stateFinish-stateStart; // Calculate the half-cycle duration
+      measuredFreq=500000/stateTime; // Compute frequency in Hz f= 1/T = 2/(T/2)
+      return; // Terminate this subroutine
+    }      
+    measureFinish=micros(); // End of the measurement
+    measureTime=measureFinish-measureStart; // Computing measurement time
+    previousReading=currentReading; // Updating the previous reading state
+  }
+}
+//----------------------------------------------------------------------------------------------------------------------------------------------
+void SerialOutput(void) // Printing the data on the serial monitor
+{
+  Serial.print("Average value: "); // Printing average of 4 last analog readings
+  Serial.print(analogAverage,DEC);
+  Serial.print('\n');
+  
+  Serial.print("Button state: "); // Printing the button state
+  Serial.print(buttonInput,DEC);
+  Serial.print('\n');
+  
+  Serial.print("Frequency: "); // Printing measured frequency of the 50% square signal
+  Serial.print(measuredFreq,DEC);
+  Serial.print(" Hz");
+  Serial.print('\n');
+}
+//----------------------------------------------------------------------------------------------------------------------------------------------
