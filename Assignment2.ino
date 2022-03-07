@@ -1,29 +1,31 @@
 // Assignment 2 for B31DG by Maksims Latkovskis
 
-#define ANALOGPIN 36
-#define ERRORPIN 21
-#define WATCHDOGPIN 18
-#define DIGITALINPUTPIN 22
-#define SIGNALPIN 19
+// Defining the pins for the I/O
+#define ANALOGPIN 36 // Pin for analog input ADC1_CH0
+#define ERRORPIN 21 // Pin for the error indication LED
+#define WATCHDOGPIN 18 // Pin for the output watchdog waveform 
+#define DIGITALINPUTPIN 22 // Pin for the pushbutton input
+#define SIGNALPIN 19 // Pin for the external square wave input
 
-unsigned long functionStart; // 
-unsigned long functionFinish;
-unsigned int slotCounter=0;
-unsigned  int functionDuration;
-int extraDelay;
+// Defining global variables
+unsigned long functionStart; // Absolute time of the slot beggining
+unsigned long functionFinish; // Absolute time of the end of all functions in the given slot
+unsigned int slotCounter=0; // Counter of the slots (total 120 slots per second)
+unsigned  int functionDuration; // Time it took to do all instructions since the beggining of the slot
+int extraDelay; // Delay required to make the slot be 8333 microseconds
 
-char analogAdress;
-unsigned int analogReading;
-unsigned int analogData[4];
-unsigned int analogAverage;
+char analogAdress; // Analog readings array indexing
+unsigned int analogReading; // Very last value to be stored from the ADC
+unsigned int analogData[4]; // Array to store 4 last values from the ADC
+unsigned int analogAverage; // Average of the last 4 values from the ACC
 
-char buttonInput;
-char errorCode;
+char buttonInput; // Pushbutton reading
+char errorCode; // Error state
 
-unsigned int measuredFreq;
+unsigned int measuredFreq; // Measured frequency of the square wave
 
 //----------------------------------------------------------------------------------------------------------------------------------------------
-void setup() 
+void setup(void)
 {
   Serial.begin(9600); // Starts the serial communication and sets baud rate to 9600
   pinMode(DIGITALINPUTPIN, INPUT);
@@ -36,7 +38,7 @@ void setup()
 //----------------------------------------------------------------------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------------------------------------------------------------------------
-void loop() // Single time slot function of the Cyclic Executive (repeating)
+void loop(void) // Single time slot function of the Cyclic Executive (repeating)
 {
   functionBeginning: // Address line
   functionStart=micros(); // Sets the CPU running time as the starting point of the time slot
@@ -144,7 +146,7 @@ void FrequencyMeasure(void) // Function to measure the frequency of the 50% duty
   // Parameters to prevent function from occupying more than 3 miliseconds of the CPU time
   unsigned long measureStart; // Absolute time of the measuring start
   unsigned long measureFinish; // Absolute time of the measuring finish
-  unsigned int measureTime; // Time it took since the function start to measure the frequency
+  unsigned int measureTime=0; // Time it took since the function start to measure the frequency
 
   // Parameters to measure the half-cycle duration of the input square signal (in microseconds)
   unsigned long stateStart;  // Absolute time of the half-cycle start
@@ -155,26 +157,27 @@ void FrequencyMeasure(void) // Function to measure the frequency of the 50% duty
   char previousReading; // Previous signal pin state
 
   measureStart=micros(); // Beggining of the measurement
+  previousReading=digitalRead(SIGNALPIN); // Performs the very first reading in the sequence (crucial line, do-not remove)
   while(measureTime<3000) // Prevents function from occupying more than 3 miliseconds of the CPU time
   {
     currentReading=digitalRead(SIGNALPIN); // Reads the digital signal pin input (0 or 1)
-      
     if ((currentReading!= previousReading) & (firstTrigger!=1)) // If the first edge was detected
     {
       stateStart=micros(); // Start counting the half-cycle duration
-      firstTrigger=1; // assign trigger to 1 to allow the second edge detection processing
+      firstTrigger=1; // assign trigger to 1 to allow the second edge detection processing    
     }  
     else if ((currentReading!= previousReading) & (firstTrigger==1)) // If the second edge was detected
     {
       stateFinish=micros(); // Finish counting the half-cycle duration
       stateTime=stateFinish-stateStart; // Calculate the half-cycle duration
-      measuredFreq=500000/stateTime; // Compute frequency in Hz f= 1/T = 2/(T/2)
-      return; // Terminate this subroutine
+      measuredFreq=500000/stateTime; // Compute frequency in Hz [f= 1/T = 2/(T/2)
+      return; // Terminate this subroutine 
     }      
     measureFinish=micros(); // End of the measurement
     measureTime=measureFinish-measureStart; // Computing measurement time
     previousReading=currentReading; // Updating the previous reading state
   }
+  measuredFreq=0; // In case of faulty measurement output zero
 }
 //----------------------------------------------------------------------------------------------------------------------------------------------
 void SerialOutput(void) // Printing the data on the serial monitor
