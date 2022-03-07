@@ -1,4 +1,5 @@
 // Assignment 2 for B31DG by Maksims Latkovskis
+// This code performs the CPU access administration between the several repeatable subroutines using the cyclic executive with 120 Hz slot frequency
 
 // Defining the pins for the I/O
 #define ANALOGPIN 36 // Pin for analog input ADC1_CH0
@@ -48,7 +49,7 @@ void loop(void) // Single time slot function of the Cyclic Executive (repeating)
   if(slotCounter>599) {slotCounter=0;} // Clears Slot counter after 5 seconds (0.2 Hz)
 
   //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // Cyclic Executive function calls
+  // Cyclic Executive function calls (constants are added to the slotCounter value to offset subroutines to different slots, refer report for more details)
  
       // Printing data on the serial monitor at 0.2 Hz frequency
       if(slotCounter==599) {SerialOutput();}
