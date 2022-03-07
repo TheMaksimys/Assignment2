@@ -6,6 +6,7 @@
 #define WATCHDOGPIN 18 // Pin for the output watchdog waveform 
 #define DIGITALINPUTPIN 22 // Pin for the pushbutton input
 #define SIGNALPIN 19 // Pin for the external square wave input
+#define ANALOGREADPIN 17 // Pin to display the analog reading time
 
 // Defining global variables
 unsigned long functionStart; // Absolute time of the slot beggining
@@ -34,6 +35,7 @@ void setup(void)
   pinMode(SIGNALPIN, INPUT_PULLDOWN); // Prevents pin from being floating 
   pinMode(WATCHDOGPIN, OUTPUT);
   pinMode(ERRORPIN, OUTPUT);
+  pinMode(ANALOGREADPIN, OUTPUT);
 }
 //----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -108,7 +110,9 @@ void ErrorDisplay(void) // Toggles the LED if the error occurs
 //----------------------------------------------------------------------------------------------------------------------------------------------
 void AnalogRead(void) // Reads the analog value from the ANALOGPIN pin
 {
-  analogReading = analogRead(ANALOGPIN); 
+  digitalWrite(ANALOGREADPIN, HIGH); // Indicate the start of the ADC
+  analogReading = analogRead(ANALOGPIN);
+  digitalWrite(ANALOGREADPIN, LOW); // Indicate the end of the ADC
 }
 //----------------------------------------------------------------------------------------------------------------------------------------------
 void AnalogAverage(void) // Computes average of last four analog readings
