@@ -187,17 +187,14 @@ void FrequencyMeasure(void) // Function to measure the frequency of the 50% duty
 //----------------------------------------------------------------------------------------------------------------------------------------------
 void SerialOutput(void) // Printing the data on the serial monitor
 {
-  Serial.print("Average value: "); // Printing average of 4 last analog readings
-  Serial.print(analogAverage,DEC);
+  Serial.print(buttonInput,DEC); // Printing the button state
+  Serial.print(",");
+    
+  Serial.print(measuredFreq,DEC); // Printing measured frequency of the 50% square signal
+  Serial.print(",");
+  
+  Serial.print(analogAverage,DEC); // Printing average of 4 last analog readings
   Serial.print('\n');
   
-  Serial.print("Button state: "); // Printing the button state
-  Serial.print(buttonInput,DEC);
-  Serial.print('\n');
-  
-  Serial.print("Frequency: "); // Printing measured frequency of the 50% square signal
-  Serial.print(measuredFreq,DEC);
-  Serial.print(" Hz");
-  Serial.print('\n');
 }
 //----------------------------------------------------------------------------------------------------------------------------------------------
